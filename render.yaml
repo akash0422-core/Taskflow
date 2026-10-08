@@ -5,8 +5,7 @@ services:
     plan: free
     region: singapore
     buildCommand: npm ci && npm run db:generate --workspace @taskflow/api && npm run build --workspace @taskflow/web
-    preDeployCommand: npm run db:deploy --workspace @taskflow/api
-    startCommand: npm run start --workspace @taskflow/api
+    startCommand: npm run db:deploy --workspace @taskflow/api && npm run start --workspace @taskflow/api
     healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
