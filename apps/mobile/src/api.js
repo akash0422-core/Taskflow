@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
-const BASE=(process.env.EXPO_PUBLIC_API_URL||'http://localhost:4000/api').replace(/\/$/,'');
+const BASE=(process.env.EXPO_PUBLIC_API_URL||'https://taskflow-fullstack-uruq.onrender.com/api').replace(/\/$/,'');
 export const getToken=()=>SecureStore.getItemAsync('taskflow_token');
 export const setToken=(token)=>SecureStore.setItemAsync('taskflow_token',token);
 export const clearToken=()=>SecureStore.deleteItemAsync('taskflow_token');
