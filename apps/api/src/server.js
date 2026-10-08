@@ -127,7 +127,7 @@ app.get('/api/dashboard', authenticate, asyncRoute(async (req, res) => {
   res.json({ stats: { totalProjects, projectsInProgress, totalTasks, completedTasks, pendingTasks }, recentProjects, upcomingTasks });
 }));
 
-const webDist = resolve(process.cwd(), 'apps/web/dist');
+const webDist = resolve(process.cwd(), '../web/dist');
 app.use(express.static(webDist));
 app.get(/.*/, (req, res, next) => {
   if (req.path === '/api' || req.path.startsWith('/api/')) return next();
