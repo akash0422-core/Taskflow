@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Taskflow",
+    "slug": "taskflow",
+    "scheme": "taskflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-status-bar"
+    ],
+    "android": {
+      "package": "com.taskflow.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#467f5f"
+      }
+    },
+    "ios": {
+      "supportsTablet": true
+    }
+  }
+}

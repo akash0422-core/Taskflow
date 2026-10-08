@@ -1,0 +1,23 @@
+{
+  "name": "taskflow",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/web",
+    "apps/mobile",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @taskflow/web",
+    "dev:api": "npm run dev --workspace @taskflow/api",
+    "dev:mobile": "npm run start --workspace @taskflow/mobile",
+    "db:generate": "npm run db:generate --workspace @taskflow/api",
+    "db:migrate": "npm run db:migrate --workspace @taskflow/api"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "prisma@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.25.12": true
+  }
+}
