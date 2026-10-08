@@ -65,3 +65,7 @@ The Expo app stores its JWT using `expo-secure-store` (Android Keystore-backed s
 ## Deployment
 
 Deploy the API and PostgreSQL database, apply `prisma migrate deploy`, and set the API environment variables. Deploy `apps/web` as a Vite static site with `VITE_API_URL` and allow its origin via `WEB_ORIGIN`. Build the Expo app with the same API URL. This repository does not include hosted URLs or distribution credentials.
+
+### Render preview
+
+The root `render.yaml` defines a single public web service for both the React web app and `/api`, plus PostgreSQL. Create a Blueprint in Render connected to this repository to deploy it. The free PostgreSQL plan is for preview use: Render deletes free databases after 30 days unless they are upgraded, so use a persistent paid database for ongoing use.

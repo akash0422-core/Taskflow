@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import { resolve } from 'node:path';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -126,6 +127,12 @@ app.get('/api/dashboard', authenticate, asyncRoute(async (req, res) => {
   res.json({ stats: { totalProjects, projectsInProgress, totalTasks, completedTasks, pendingTasks }, recentProjects, upcomingTasks });
 }));
 
+const webDist = resolve(process.cwd(), 'apps/web/dist');
+app.use(express.static(webDist));
+app.get(/.*/, (req, res, next) => {
+  if (req.path === '/api' || req.path.startsWith('/api/')) return next();
+  res.sendFile(resolve(webDist, 'index.html'));
+});
 app.use((req, res) => res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` }));
 app.use((error, _req, res, _next) => {
   console.error(error);
