@@ -46,17 +46,22 @@ jobs:
 
       - name: Sign APK for installation
         run: |
-          apk="apps/mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          apk="$(find apps/mobile/android/app/build/outputs/apk/release -name '*.apk' -type f -print -quit)"
+          test -n "$apk"
           key="${RUNNER_TEMP}/taskflow-preview.keystore"
           keytool -genkeypair -v -storetype PKCS12 -keystore "$key" \
             -alias taskflow -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass android -keypass android \
             -dname "CN=Taskflow Preview,O=Taskflow,C=US"
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          "$build_tools/zipalign" -f -v 4 "$apk" "${RUNNER_TEMP}/taskflow-aligned.apk"
-          "$build_tools/apksigner" sign --ks "$key" --ks-key-alias taskflow \
-            --ks-pass pass:android --key-pass pass:android \
-            --out apps/mobile/taskflow.apk "${RUNNER_TEMP}/taskflow-aligned.apk"
+          if "$build_tools/apksigner" verify "$apk" >/dev/null 2>&1; then
+            cp "$apk" apps/mobile/taskflow.apk
+          else
+            "$build_tools/zipalign" -f -v 4 "$apk" "${RUNNER_TEMP}/taskflow-aligned.apk"
+            "$build_tools/apksigner" sign --ks "$key" --ks-key-alias taskflow \
+              --ks-pass pass:android --key-pass pass:android \
+              --out apps/mobile/taskflow.apk "${RUNNER_TEMP}/taskflow-aligned.apk"
+          fi
           "$build_tools/apksigner" verify apps/mobile/taskflow.apk
 
       - name: Publish public APK release
