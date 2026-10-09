@@ -51,10 +51,14 @@ Prisma schema and migration history are in `apps/api/prisma`. A user owns projec
 erDiagram
   USER ||--o{ PROJECT : owns
   PROJECT ||--o{ TASK : contains
+  TASK ||--o{ ATTACHMENT : includes
   USER { string id PK string name string email UK string passwordHash }
   PROJECT { string id PK string ownerId FK string name string status datetime startDate datetime endDate }
   TASK { string id PK string projectId FK string name string status string priority datetime dueDate }
+  ATTACHMENT { string id PK string taskId FK string name string mimeType int size bytes data }
 ```
+
+Task attachments are stored in PostgreSQL and limited to 10 MB per file. They are only accessible to the owner of the task.
 
 The full endpoint guide is in [API.md](./API.md).
 

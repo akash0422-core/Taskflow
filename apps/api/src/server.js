@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -11,6 +12,7 @@ import { z } from 'zod';
 
 const app = express();
 const prisma = new PrismaClient();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
 const port = Number(process.env.PORT || 4000);
 if (!process.env.DATABASE_URL || !process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   console.error('Set DATABASE_URL and a JWT_SECRET of at least 32 characters.'); process.exit(1);
@@ -91,7 +93,7 @@ app.get('/api/tasks', authenticate, asyncRoute(async (req, res) => {
   if (enums.task.includes(req.query.status)) where.status = req.query.status;
   if (enums.priority.includes(req.query.priority)) where.priority = req.query.priority;
   if (req.query.projectId) where.projectId = String(req.query.projectId);
-  const [items, total] = await Promise.all([prisma.task.findMany({ where, skip, take, orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }], include: { project: { select: { id: true, name: true } } } }), prisma.task.count({ where })]);
+  const [items, total] = await Promise.all([prisma.task.findMany({ where, skip, take, orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }], include: { project: { select: { id: true, name: true } }, attachments: { select: { id: true, name: true, mimeType: true, size: true, createdAt: true }, orderBy: { createdAt: 'desc' } } } }), prisma.task.count({ where })]);
   res.json(paged(items, total, page, take));
 }));
 app.post('/api/tasks', authenticate, validate(taskSchema), asyncRoute(async (req, res) => {
@@ -101,8 +103,34 @@ app.post('/api/tasks', authenticate, validate(taskSchema), asyncRoute(async (req
   res.status(201).json({ task: await prisma.task.create({ data: { ...data, projectId }, include: { project: { select: { id: true, name: true } } } }) });
 }));
 app.get('/api/tasks/:id', authenticate, asyncRoute(async (req, res) => {
-  const task = await prisma.task.findFirst({ where: { id: req.params.id, project: { ownerId: req.user.id } }, include: { project: { select: { id: true, name: true } } } });
+  const task = await prisma.task.findFirst({ where: { id: req.params.id, project: { ownerId: req.user.id } }, include: { project: { select: { id: true, name: true } }, attachments: { select: { id: true, name: true, mimeType: true, size: true, createdAt: true }, orderBy: { createdAt: 'desc' } } } });
   if (!task) return res.status(404).json({ error: 'Task not found.' }); res.json({ task });
+}));
+app.get('/api/tasks/:id/attachments', authenticate, asyncRoute(async (req, res) => {
+  const task = await prisma.task.findFirst({ where: { id: req.params.id, project: { ownerId: req.user.id } }, select: { id: true } });
+  if (!task) return res.status(404).json({ error: 'Task not found.' });
+  const attachments = await prisma.attachment.findMany({ where: { taskId: task.id }, select: { id: true, name: true, mimeType: true, size: true, createdAt: true }, orderBy: { createdAt: 'desc' } });
+  res.json({ items: attachments });
+}));
+app.post('/api/tasks/:id/attachments', authenticate, upload.single('file'), asyncRoute(async (req, res) => {
+  const task = await prisma.task.findFirst({ where: { id: req.params.id, project: { ownerId: req.user.id } }, select: { id: true } });
+  if (!task) return res.status(404).json({ error: 'Task not found.' });
+  if (!req.file) return res.status(400).json({ error: 'Choose a file to attach.' });
+  const name = req.file.originalname.replace(/[\\/\\0-\\x1f\\x7f]/g, '_').slice(0, 255) || 'attachment';
+  const attachment = await prisma.attachment.create({ data: { name, mimeType: req.file.mimetype || 'application/octet-stream', size: req.file.size, data: req.file.buffer, taskId: task.id }, select: { id: true, name: true, mimeType: true, size: true, createdAt: true } });
+  res.status(201).json({ attachment });
+}));
+app.get('/api/attachments/:id/download', authenticate, asyncRoute(async (req, res) => {
+  const attachment = await prisma.attachment.findFirst({ where: { id: req.params.id, task: { project: { ownerId: req.user.id } } } });
+  if (!attachment) return res.status(404).json({ error: 'Attachment not found.' });
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.attachment(attachment.name).send(Buffer.from(attachment.data));
+}));
+app.delete('/api/attachments/:id', authenticate, asyncRoute(async (req, res) => {
+  const result = await prisma.attachment.deleteMany({ where: { id: req.params.id, task: { project: { ownerId: req.user.id } } } });
+  if (!result.count) return res.status(404).json({ error: 'Attachment not found.' });
+  res.status(204).end();
 }));
 app.put('/api/tasks/:id', authenticate, validate(taskSchema.partial()), asyncRoute(async (req, res) => {
   const { projectId, ...data } = req.validated;
@@ -122,7 +150,7 @@ app.get('/api/dashboard', authenticate, asyncRoute(async (req, res) => {
     prisma.project.count({ where: owner }), prisma.project.count({ where: { ...owner, status: 'IN_PROGRESS' } }), prisma.task.count({ where: project }),
     prisma.task.count({ where: { ...project, status: 'COMPLETED' } }), prisma.task.count({ where: { ...project, status: 'PENDING' } }),
     prisma.project.findMany({ where: owner, orderBy: { updatedAt: 'desc' }, take: 4, include: { _count: { select: { tasks: true } } } }),
-    prisma.task.findMany({ where: { ...project, status: { not: 'COMPLETED' } }, orderBy: { dueDate: 'asc' }, take: 5, include: { project: { select: { id: true, name: true } } } })
+    prisma.task.findMany({ where: { ...project, status: { not: 'COMPLETED' } }, orderBy: { dueDate: 'asc' }, take: 5, include: { project: { select: { id: true, name: true } }, attachments: { select: { id: true, name: true, mimeType: true, size: true, createdAt: true }, orderBy: { createdAt: 'desc' } } } })
   ]);
   res.json({ stats: { totalProjects, projectsInProgress, totalTasks, completedTasks, pendingTasks }, recentProjects, upcomingTasks });
 }));
@@ -136,6 +164,7 @@ app.get(/.*/, (req, res, next) => {
 app.use((req, res) => res.status(404).json({ error: `Route ${req.method} ${req.path} not found.` }));
 app.use((error, _req, res, _next) => {
   console.error(error);
+  if (error instanceof multer.MulterError) return res.status(error.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ error: error.code === 'LIMIT_FILE_SIZE' ? 'Files must be 10 MB or smaller.' : 'Unable to upload this file.' });
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return res.status(409).json({ error: 'A record with this value already exists.' });
   res.status(500).json({ error: 'Something went wrong. Please try again.' });
 });

@@ -1,6 +1,6 @@
 # Taskflow REST API
 
-Base URL: `http://localhost:4000/api`. All request and response bodies use JSON. Authenticated endpoints require `Authorization: Bearer <JWT>`. Errors use `{ "error": "Human-readable message" }`.
+Base URL: `http://localhost:4000/api`. Request and response bodies use JSON except task file uploads, which use multipart form data. Authenticated endpoints require `Authorization: Bearer <JWT>`. Errors use `{ "error": "Human-readable message" }`.
 
 ## Authentication
 
@@ -39,6 +39,15 @@ Task statuses: `PENDING`, `IN_PROGRESS`, `COMPLETED`. Priorities: `LOW`, `MEDIUM
 | PUT | `/tasks/:id` | Update any supplied task fields (including `projectId`) |
 | DELETE | `/tasks/:id` | Delete a task |
 
+Attachments use authenticated multipart uploads with a `file` field and a 10 MB maximum:
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/tasks/:id/attachments` | List attachment metadata for an owned task |
+| POST | `/tasks/:id/attachments` | Upload a file to an owned task |
+| GET | `/attachments/:id/download` | Download an attachment owned by the signed-in user |
+| DELETE | `/attachments/:id` | Delete an attachment owned by the signed-in user |
+
 List responses have the shape `{items,total,page,limit,pages}`. Default page size is 20; maximum is 100. Project and task lookups are always scoped to the authenticated owner.
 
 ## Dashboard
@@ -52,3 +61,4 @@ List responses have the shape `{items,total,page,limit,pages}`. Default page siz
 - `404` missing resource (including resources owned by another account)
 - `409` duplicate email
 - `429` authentication rate limit exceeded
+- `413` attachment exceeds the 10 MB limit
